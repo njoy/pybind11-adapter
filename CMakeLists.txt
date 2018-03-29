@@ -36,3 +36,5 @@ message( STATUS "" )
 message( STATUS "-----------------------------------------------------------" )
 
 add_subdirectory( src )
+
+add_library(pybind11-adapter ALIAS pybind11)
