@@ -20,4 +20,4 @@ git subtree pull --prefix src pybind11 master --squash
 
 ## License
 
-The code contained in this directory is covered by the license contained in the LICENSE file. The code in the src directory is covered by it's own LICENSE.
+The code contained in this directory is covered by the license contained in the [LICENSE](LICENSE) file. The code in the src directory is covered by it's own [LICENSE](src/LICENSE).
