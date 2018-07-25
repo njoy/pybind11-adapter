@@ -1,6 +1,8 @@
 # pybind11-adapter
 
-A repository which adapts the pybind11 project for use in the NJOY21 build scheme.
+A repository which adapts the [pybind11](https://github.com:pybind/pybind11) project for use in the NJOY21 build scheme.
+
+Documentation about how to use pybind11 can be found in [pybind11.readthedocs.io](https://pybind11.readthedocs.io)
 
 ## Git Subtree
 
