@@ -4,7 +4,7 @@ A repository which adapts the pybind11 project for use in the NJOY21 build schem
 
 ## Git Subtree
 
-This repository uses a git subtree for the directory src. The remote from which the subtree is made is located at https://github.com/boostorg/hana.git. Equivalently, you can use the ssh location at git@github.com:pybind/pybind11.git.
+This repository uses a git subtree for the directory src. The remote from which the subtree is made is located at [git@github.com:pybind/pybind11.git]().
 
 To facilitate updating the subtree when it gets updated upstream, do the following:
 
