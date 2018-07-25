@@ -12,7 +12,7 @@
 #include "pybind11.h"
 #include <functional>
 
-NAMESPACE_BEGIN(pybind11)
+NAMESPACE_BEGIN(PYBIND11_NAMESPACE)
 NAMESPACE_BEGIN(detail)
 
 template <typename Return, typename... Args>
@@ -75,11 +75,9 @@ public:
             return cpp_function(std::forward<Func>(f_), policy).release();
     }
 
-    PYBIND11_TYPE_CASTER(type, _("Callable[[") +
-            argument_loader<Args...>::arg_names() + _("], ") +
-            make_caster<retval_type>::name() +
-            _("]"));
+    PYBIND11_TYPE_CASTER(type, _("Callable[[") + concat(make_caster<Args>::name...) + _("], ")
+                               + make_caster<retval_type>::name + _("]"));
 };
 
 NAMESPACE_END(detail)
-NAMESPACE_END(pybind11)
+NAMESPACE_END(PYBIND11_NAMESPACE)

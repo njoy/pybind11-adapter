@@ -9,10 +9,24 @@
 
 #include "pybind11_tests.h"
 #include "constructor_stats.h"
+#include "local_bindings.h"
+#include <pybind11/stl.h>
+
+// test_brace_initialization
+struct NoBraceInitialization {
+    NoBraceInitialization(std::vector<int> v) : vec{std::move(v)} {}
+    template <typename T>
+    NoBraceInitialization(std::initializer_list<T> l) : vec(l) {}
+
+    std::vector<int> vec;
+};
 
 TEST_SUBMODULE(class_, m) {
     // test_instance
     struct NoConstructor {
+        NoConstructor() = default;
+        NoConstructor(const NoConstructor &) = default;
+        NoConstructor(NoConstructor &&) = default;
         static NoConstructor *new_instance() {
             auto *ptr = new NoConstructor();
             print_created(ptr, "via new_instance");
@@ -81,7 +95,12 @@ TEST_SUBMODULE(class_, m) {
     m.def("dog_bark", [](const Dog &dog) { return dog.bark(); });
 
     // test_automatic_upcasting
-    struct BaseClass { virtual ~BaseClass() {} };
+    struct BaseClass {
+        BaseClass() = default;
+        BaseClass(const BaseClass &) = default;
+        BaseClass(BaseClass &&) = default;
+        virtual ~BaseClass() {}
+    };
     struct DerivedClass1 : BaseClass { };
     struct DerivedClass2 : BaseClass { };
 
@@ -224,9 +243,107 @@ TEST_SUBMODULE(class_, m) {
     aliased.def(py::init<>());
     aliased.attr("size_noalias") = py::int_(sizeof(AliasedHasOpNewDelSize));
     aliased.attr("size_alias") = py::int_(sizeof(PyAliasedHasOpNewDelSize));
+
+    // This test is actually part of test_local_bindings (test_duplicate_local), but we need a
+    // definition in a different compilation unit within the same module:
+    bind_local<LocalExternal, 17>(m, "LocalExternal", py::module_local());
+
+    // test_bind_protected_functions
+    class ProtectedA {
+    protected:
+        int foo() const { return value; }
+
+    private:
+        int value = 42;
+    };
+
+    class PublicistA : public ProtectedA {
+    public:
+        using ProtectedA::foo;
+    };
+
+    py::class_<ProtectedA>(m, "ProtectedA")
+        .def(py::init<>())
+#if !defined(_MSC_VER) || _MSC_VER >= 1910
+        .def("foo", &PublicistA::foo);
+#else
+        .def("foo", static_cast<int (ProtectedA::*)() const>(&PublicistA::foo));
+#endif
+
+    class ProtectedB {
+    public:
+        virtual ~ProtectedB() = default;
+
+    protected:
+        virtual int foo() const { return value; }
+
+    private:
+        int value = 42;
+    };
+
+    class TrampolineB : public ProtectedB {
+    public:
+        int foo() const override { PYBIND11_OVERLOAD(int, ProtectedB, foo, ); }
+    };
+
+    class PublicistB : public ProtectedB {
+    public:
+        using ProtectedB::foo;
+    };
+
+    py::class_<ProtectedB, TrampolineB>(m, "ProtectedB")
+        .def(py::init<>())
+#if !defined(_MSC_VER) || _MSC_VER >= 1910
+        .def("foo", &PublicistB::foo);
+#else
+        .def("foo", static_cast<int (ProtectedB::*)() const>(&PublicistB::foo));
+#endif
+
+    // test_brace_initialization
+    struct BraceInitialization {
+        int field1;
+        std::string field2;
+    };
+
+    py::class_<BraceInitialization>(m, "BraceInitialization")
+        .def(py::init<int, const std::string &>())
+        .def_readwrite("field1", &BraceInitialization::field1)
+        .def_readwrite("field2", &BraceInitialization::field2);
+    // We *don't* want to construct using braces when the given constructor argument maps to a
+    // constructor, because brace initialization could go to the wrong place (in particular when
+    // there is also an `initializer_list<T>`-accept constructor):
+    py::class_<NoBraceInitialization>(m, "NoBraceInitialization")
+        .def(py::init<std::vector<int>>())
+        .def_readonly("vec", &NoBraceInitialization::vec);
+
+    // test_reentrant_implicit_conversion_failure
+    // #1035: issue with runaway reentrant implicit conversion
+    struct BogusImplicitConversion {
+        BogusImplicitConversion(const BogusImplicitConversion &) { }
+    };
+
+    py::class_<BogusImplicitConversion>(m, "BogusImplicitConversion")
+        .def(py::init<const BogusImplicitConversion &>());
+
+    py::implicitly_convertible<int, BogusImplicitConversion>();
+
+    // test_qualname
+    // #1166: nested class docstring doesn't show nested name
+    // Also related: tests that __qualname__ is set properly
+    struct NestBase {};
+    struct Nested {};
+    py::class_<NestBase> base(m, "NestBase");
+    base.def(py::init<>());
+    py::class_<Nested>(base, "Nested")
+        .def(py::init<>())
+        .def("fn", [](Nested &, int, NestBase &, Nested &) {})
+        .def("fa", [](Nested &, int, NestBase &, Nested &) {},
+                "a"_a, "b"_a, "c"_a);
+    base.def("g", [](NestBase &, Nested &) {});
+    base.def("h", []() { return NestBase(); });
 }
 
-template <int N> class BreaksBase {};
+template <int N> class BreaksBase { public: virtual ~BreaksBase() = default; };
 template <int N> class BreaksTramp : public BreaksBase<N> {};
 // These should all compile just fine:
 typedef py::class_<BreaksBase<1>, std::unique_ptr<BreaksBase<1>>, BreaksTramp<1>> DoesntBreak1;
