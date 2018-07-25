@@ -9,6 +9,8 @@
 Reference
 #########
 
+.. _macros:
+
 Macros
 ======
 
@@ -69,7 +71,16 @@ Embedding the interpreter
 
 .. doxygenclass:: scoped_interpreter
 
-Python build-in functions
+Redirecting C++ streams
+=======================
+
+.. doxygenclass:: scoped_ostream_redirect
+
+.. doxygenclass:: scoped_estream_redirect
+
+.. doxygenfunction:: add_ostream_redirect
+
+Python built-in functions
 =========================
 
 .. doxygengroup:: python_builtins
